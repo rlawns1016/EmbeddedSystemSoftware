@@ -1,0 +1,16 @@
+19.06.04
+
+Reference: http://www.linux-usb.org/USB-guide/c15.html
+
+Bandwidth Limit
+
+The current implementation of the USB allows 127 devices to be connected at the same time and the total communication bandwidth is limited to 12Mbit/s. Howewer use of low speed devices, management of USB "interrupts" and other overheads mean that actual throughput cannot exceed about 8.5Mbit/s under near ideal conditions, and typical performance may be around 2Mbit/s.
+
+Connection Scheme
+
+The USB is strictly hierarchical and it is controlled by one host. The host uses a master / slave protocol to communicate with attached USB devices. This means that every kind of communication is initiated by the host and devices cannot establish any direct connection to other devices.
+
+host - device 개념으로 host(master)만 device(slave)로 connection 을 establish 할 수 있다.(데이터를 주고받는건 문제 없을 듯.) (2.0까지는 반이중통신을 지원하나, 3.0은 데이터 채널이 2개이기 때문에 전 이중 통신을 할 수 있고, 하위 호환을 위하는 채널이 따로 있어서 총 3개의 채널이다. - https://namu.wiki/w/USB/%EB%B2%84%EC%A0%84) (현재 우리 보드에 올라간 achroimx_kernel(linux 3.10.17)에서 쓰는 usb 버전은 2.x인 듯.)
+
+	
+Data Flow Types
