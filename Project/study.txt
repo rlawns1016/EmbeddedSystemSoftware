@@ -1,4 +1,4 @@
-19.06.04
+[19.06.04]
 
 - Reference : 
 
@@ -53,6 +53,37 @@ Ishchronos transfer : data stream을 주고받을 때 사용. reliability 는 �
 
 
 - Enumeration and Device Descriptors
+
+Host의 usb hub에 device가 attach 되면 enumerate됨.
+Host가 device에 device 번호를 부여하고 device 의 usb descriptor를 읽음.
+descriptor : device에 관한 정보와 properties를 포함하고 있음
+
+standard descriptors 
+
+Device Descriptor : USB device에 대한 general information(applies globally to the device and all of the device s configurations.) USB device는 단 하나의 device descriptor를 갖는다.
+
+Configuration Descriptor : USB device에 대한 specific한 device configuration. USB device는 하나 이상의 configuration descriptor를 갖을 수 있다. 각 configuration descriptor는 하나 이상의 interface를 갖을 수 있고, 각 interface는 0개 이상의 end point를 갖을 수 있다. end point는 하나의 confirguration 안에서 서로 다른 interface에 의해 공유되지 않는다. 하지만 하나의 interface가 서로 다른 setting으로 같은 end point 사용 가능.
+configuration은 오직 standard controll transfer인 set_configuration으로 activate 된다.
+
+Interface Descriptor : 특정 configuration 안에서 specific한 interface 정보 제공. An interface may include alternate settings that allow the endpoints and/or their characteristics to be varied after the device has been configured. The default setting for an interface is always alternate setting zero. Alternate settings can be selected exclusively by the standard control transfer set_interface. For example a multifunctional device like a video camera with internal microphone could have three alternate settings to change the bandwidth allocation on the bus.
+Camera activated
+Microphone activated
+Camera and microphone activated 
+
+Endpoint Descriptor : 각 endpoint 마다 얼마만큼의 bandwidth가 필요한지에 관한 정보를 제공(이를 통해 host가 각 endpoint의 bandwidth 결정.) endpoint는 logical data source나 USB device의 sink를 represent한다. 0번 endpoint는 control transfer가 사용(descriptor가 따로 존재하지 않음.)
+
+String Descriptor : optional, unicode format으로 human readable한 정보 제공. vendor and device name이나 serial number 등
+
+ 
+- Device Classes
+
+Standard device, interface descriptor는 classification(class, sub-class, protocol)에 관한 field를 포함한다. 이 field는 Host가 device나 interface를 driver와 associate 할 때 사용. 이 field의 Valid value들은 USB Device Working Group에 define 되어 있음
+
+
+- Device Drivers
+
+각 interface마다 device driver를 구현 할 수 있고, interface들을 통합해서 하나의 driver에 구현할 수 있다고 함.
+
 
 
 
