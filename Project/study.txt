@@ -85,5 +85,53 @@ Standard device, interface descriptor는 classification(class, sub-class, protoc
 각 interface마다 device driver를 구현 할 수 있고, interface들을 통합해서 하나의 driver에 구현할 수 있다고 함.
 
 
+- usb-skeleton.c
+
+USB driver의 경우 usb_driver object를 생성해서 kernel에 등록해줘야함
+kernel 등록은 init 함수에서 수행. 등록 해제는 exit 함수에서 수행.
+
+static struct usb_driver skel_driver = {
+	.name =		"skeleton",
+	.probe =	skel_probe,
+	.disconnect =	skel_disconnect,
+	.suspend =	skel_suspend,
+	.resume =	skel_resume,
+	.pre_reset =	skel_pre_reset,
+	.post_reset =	skel_post_reset,
+	.id_table =	skel_table,
+	.supports_autosuspend = 1,
+};
+
+static int __init usb_skel_init(void)
+{
+	int result;
+
+	/* register this driver with the USB subsystem */
+	result = usb_register(&skel_driver);
+	if (result)
+		err("usb_register failed. Error number %d", result);
+
+	return result;
+}
+
+static void __exit usb_skel_exit(void)
+{
+	/* deregister this driver with the USB subsystem */
+	usb_deregister(&skel_driver);
+}
+
+module_init(usb_skel_init);
+module_exit(usb_skel_exit);
+
+probe 함수는 Device가 연결되었을 때 device를 초기화 해주고 통신을 할 수 있도록 하부 드라이버에 알려주는 역할. disconnect는 probe 함수에서 생성한 개체들을 release하고 device가 disconnect 되었다는 것을 알려준다.
+
+
+
+
+
+
+
+
+
 
 
