@@ -3,7 +3,7 @@
 - Reference : 
 
 http://www.linux-usb.org/USB-guide/c15.html
-
+USB Driver Programming Guide For Linux
 
 - Bandwidth Limit
 
@@ -87,8 +87,8 @@ Standard device, interface descriptor는 classification(class, sub-class, protoc
 
 - usb-skeleton.c
 
-USB driver의 경우 usb_driver object를 생성해서 kernel에 등록해줘야함
-kernel 등록은 init 함수에서 수행. 등록 해제는 exit 함수에서 수행.
+USB driver의 경우 usb_driver object를 생성해서 kernel(subsystem)에 등록해줘야함
+register은 init 함수에서 수행. unregister는 exit 함수에서 수행.
 
 static struct usb_driver skel_driver = {
 	.name =		"skeleton",
@@ -120,10 +120,13 @@ static void __exit usb_skel_exit(void)
 	usb_deregister(&skel_driver);
 }
 
-module_init(usb_skel_init);
-module_exit(usb_skel_exit);
 
-probe 함수는 Device가 연결되었을 때 device를 초기화 해주고 통신을 할 수 있도록 하부 드라이버에 알려주는 역할. disconnect는 probe 함수에서 생성한 개체들을 release하고 device가 disconnect 되었다는 것을 알려준다.
+probe : device를 검출하는 function. 이것은 kernel에서 정확한 USB driver를 선택할 수 있도록 도와주며 새로운 device가 검출될 때 호출
+	대부분의 초기화 작업을 여기서 수행
+	
+disconnect : 더이상 device가 사용되지 않을 때 호출, probe에서 할당한 자원을 여기서 release
+
+
 
 
 
