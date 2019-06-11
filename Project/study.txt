@@ -3,7 +3,9 @@
 - Reference : 
 
 http://www.linux-usb.org/USB-guide/c15.html
+https://programmer.group/linux-usb-subsystem-2-_usb-skeleton.c-analysis.html
 USB Driver Programming Guide For Linux
+
 
 - Bandwidth Limit
 
@@ -74,6 +76,10 @@ Endpoint Descriptor : 각 endpoint 마다 얼마만큼의 bandwidth가 필요한
 
 String Descriptor : optional, unicode format으로 human readable한 정보 제공. vendor and device name이나 serial number 등
 
+
+Q. 보드마다 정의된 USB Descriptor 를 따로 수정 / 추가를 해줘야하나? 아니면 기존의 Descriptor를 사용해도 되나..?
+Descriptor를 건드리면 kernel의 usb subsystem도 건드려야하지 않나
+
  
 - Device Classes
 
@@ -85,10 +91,10 @@ Standard device, interface descriptor는 classification(class, sub-class, protoc
 각 interface마다 device driver를 구현 할 수 있고, interface들을 통합해서 하나의 driver에 구현할 수 있다고 함.
 
 
-- usb-skeleton.c
+- usb-skeleton.c (BULK 방식으로 구현되어 있다고 함.)
 
-USB driver의 경우 usb_driver object를 생성해서 kernel(subsystem)에 등록해줘야함
-register은 init 함수에서 수행. unregister는 exit 함수에서 수행.
+USB driver의 경우 usb_driver object를 생성해서 kernel(의 subsystem)에 등록해줘야함
+(다시말하면 subsystem에서 사용할 수 있도록 정해진 interface에 맞게 구현해야한다는 말이고 아래 structure가 그 interface 내용이라 생각하면 될 듯) 
 
 static struct usb_driver skel_driver = {
 	.name =		"skeleton",
@@ -101,6 +107,9 @@ static struct usb_driver skel_driver = {
 	.id_table =	skel_table,
 	.supports_autosuspend = 1,
 };
+
+
+subsystem에 register은 init 함수에서 수행. unregister는 exit 함수에서 수행.
 
 static int __init usb_skel_init(void)
 {
@@ -122,15 +131,113 @@ static void __exit usb_skel_exit(void)
 
 
 probe : device를 검출하는 function. 이것은 kernel에서 정확한 USB driver를 선택할 수 있도록 도와주며 새로운 device가 검출될 때 호출
-	대부분의 초기화 작업을 여기서 수행
+대부분의 초기화 작업을 여기서 수행한다고 함.
+
+
+
 	
 disconnect : 더이상 device가 사용되지 않을 때 호출, probe에서 할당한 자원을 여기서 release
 
 
+[19.06.11]
+(밑에서부터는 하위버젼에 해당하는듯, 현재 usb-skeleton.c에는 저 usb_driver 구조체 안에 없다.)
+
+Driver_list : subsystem에서 내부적으로 사용하며 { NULL, NULL }로 초기화
+(이건 어디에있는지 모르겠음. 사라진건가)
+
+Fops : module에서 사용하는 file operation들
+
+Minor : device에 할당된 base minor number
+(위 2개는
+
+static struct usb_class_driver skel_class = {
+	.name =		"skel%d",
+	.fops =		&skel_fops,
+	.minor_base =	USB_SKEL_MINOR_BASE,
+};
+
+여기에 등록되어있음)
+
+다음내용은 probe 함수에 대한 자세한 설명인데, 문서의 리눅스 버전이 우리가 개발해야하는 버전과달라서 사용하는 구조체들이 많이 다르다. 그거에 대해 정리하고 넘어가야 할듯..
+
+
+/* Structure to hold all of our device specific stuff */
+struct usb_skel {
+	struct usb_device	*udev;			/* the usb device for this device */
+	struct usb_interface	*interface;		/* the interface for this device */
+	struct semaphore	limit_sem;		/* limiting the number of writes in progress */
+	struct usb_anchor	submitted;		/* in case we need to retract our submissions */
+	struct urb		*bulk_in_urb;		/* the urb to read data with */
+	unsigned char           *bulk_in_buffer;	/* the buffer to receive data */
+	size_t			bulk_in_size;		/* the size of the receive buffer */
+	size_t			bulk_in_filled;		/* number of bytes in the buffer */
+	size_t			bulk_in_copied;		/* already copied to user space */
+	__u8			bulk_in_endpointAddr;	/* the address of the bulk in endpoint */
+	__u8			bulk_out_endpointAddr;	/* the address of the bulk out endpoint */
+	int			errors;			/* the last request tanked */
+	int			open_count;		/* count the number of openers */
+	bool			ongoing_read;		/* a read is going on */
+	bool			processed_urb;		/* indicates we haven't processed the urb */
+	spinlock_t		err_lock;		/* lock for errors */
+	struct kref		kref;
+	struct mutex		io_mutex;		/* synchronize I/O with disconnect */
+	struct completion	bulk_in_completion;	/* to wait for an ongoing read */
+};
+
+대충 보면 Device마다 specific하게 정의될 수 있는 옵션(?)들을 access할 수 있게 해주는듯.
+
+usb-skeleton.c의 대부분 함수들에서
+
+struct usb_skel *dev; 이렇게 선언해두고
+
+dev = file->private_data; 이렇게 reference해서 필요한 정보들을 뽑아 쓰고있다.
+
+저 file 포인터는 파라메터로 넘어오는 건데 kernel의 usb subsystem이 넘겨주는건지, file system에서 넘겨주는건지는 잘 모르겠다..
+(문서보니까 app <-> usb client driver <-> usb core <-> host controller driver <-> host controller <-> usb device 이렇게 나와있음.)
+
+static const struct file_operations skel_fops = {
+	.owner =	THIS_MODULE,
+	.read =		skel_read,
+	.write =	skel_write,
+	.open =		skel_open,
+	.release =	skel_release,
+	.flush =	skel_flush,
+	.llseek =	noop_llseek,
+};
+이거는 수업시간에 배운 fop다. 밑에 있는 flush랑 llseek는 따로 구현 안해도 될 듯
 
 
 
+/*
+ * usb class driver info in order to get a minor number from the usb core,
+ * and to have the device registered with the driver core
+ */
+static struct usb_class_driver skel_class = {
+	.name =		"skel%d",
+	.fops =		&skel_fops,
+	.minor_base =	USB_SKEL_MINOR_BASE,
+};
 
+이거는 usb class 관련한 구조체인데 주석에 있는 usb core와 driver core가 뭘 의미하는지는 잘 모르겠다. 근데 kernel의 usb subsystem이 이걸 가져다 쓰는거 같다.
+(문서에는 
+"USB Core가 하는 역할은 Hardware와 device dependent한 부분을 data structure와 macro를 정의해서 abstract하게 하는 역할을 한다. 즉, USB core는 USB device driver들과 Host controller driver에 일반적인 routine들을 가진다. 이것의 주된 목적은 hardware나 device에 dependent한 부분들에 대해서 data structure와 function, macro등을 제공하는 것이다. 이렇게 함으로 해서 상위에 올라갈 program들이 이것을 이용해서 hardware나 device에 손쉽게 접근하게 되는 것이다." 
+그냥 usb subsystem에 대한 abstraction을 제공해주는 듯)
+
+
+static struct usb_driver skel_driver = {
+	.name =		"skeleton",
+	.probe =	skel_probe,
+	.disconnect =	skel_disconnect,
+	.suspend =	skel_suspend,
+	.resume =	skel_resume,
+	.pre_reset =	skel_pre_reset,
+	.post_reset =	skel_post_reset,
+	.id_table =	skel_table,
+	.supports_autosuspend = 1,
+};
+이것도 마찬가지로 sub system이 쓸 수 있도록 해주는듯
+
+문서부터 읽는 것보다 usb-skeleton.c 에 있는 함수들이 어떻게 구현되어 있는지 살펴보고 문서를 읽어보는 것이 도움이 될 것 같다.
 
 
 
