@@ -1,0 +1,32 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <EditText
+        android:id="@+id/editText_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10" android:inputType="text">
+
+        <requestFocus />
+    </EditText>
+    
+    <TextView 
+        android:id="@+id/textView_Timer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="35dp"
+        android:text="00:00" />
+    
+    
+    <Button
+        android:id="@+id/button_makeButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Make Buttons" />
+    
+</LinearLayout>
