@@ -6,14 +6,11 @@
 int main(void){
 	int fd;
 	int retn;
-	char buf[2] = {0,};
-	/*
-		device file name : /dev/stopwatch
-		major number : 242
-	*/
-	fd = open("/dev/stopwatch", O_RDWR);
+	char buf[4] = { 0, 0, 0, 0 };		//4byte
+	
+	fd = open("/dev/bus/usb/002/", O_RDWR);
 	if(fd < 0) {
-		perror("/dev/stopwatch error");
+		perror("/dev/bus/usb/002/ error");
 		exit(-1);
 	}
     else { printf("< inter Device has been detected > \n"); }
