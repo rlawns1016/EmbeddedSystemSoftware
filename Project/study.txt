@@ -160,6 +160,19 @@ static struct usb_class_driver skel_class = {
 
 다음내용은 probe 함수에 대한 자세한 설명인데, 문서의 리눅스 버전이 우리가 개발해야하는 버전과달라서 사용하는 구조체들이 많이 다르다. 그거에 대해 정리하고 넘어가야 할듯..
 
+#define USB_SKEL_VENDOR_ID	0xfff0
+#define USB_SKEL_PRODUCT_ID	0xfff0
+
+/* table of devices that work with this driver */
+static const struct usb_device_id skel_table[] = {
+	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
+	{ }					/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, skel_table);
+
+어느 device가 우리가 구현한 driver와 matching 될지를 정의해준다고 생각하면 될 듯. 위의 define문 2개에서 우리 보드의 vendor id와 product id 를 써주면 된다. 
+
+
 
 /* Structure to hold all of our device specific stuff */
 struct usb_skel {
@@ -221,7 +234,7 @@ static struct usb_class_driver skel_class = {
 이거는 usb class 관련한 구조체인데 주석에 있는 usb core와 driver core가 뭘 의미하는지는 잘 모르겠다. 근데 kernel의 usb subsystem이 이걸 가져다 쓰는거 같다.
 (문서에는 
 "USB Core가 하는 역할은 Hardware와 device dependent한 부분을 data structure와 macro를 정의해서 abstract하게 하는 역할을 한다. 즉, USB core는 USB device driver들과 Host controller driver에 일반적인 routine들을 가진다. 이것의 주된 목적은 hardware나 device에 dependent한 부분들에 대해서 data structure와 function, macro등을 제공하는 것이다. 이렇게 함으로 해서 상위에 올라갈 program들이 이것을 이용해서 hardware나 device에 손쉽게 접근하게 되는 것이다." 
-그냥 usb subsystem에 대한 abstraction을 제공해주는 듯)
+usb core는 그냥 usb subsystem에 대한 abstraction을 제공해주는 듯)
 
 
 static struct usb_driver skel_driver = {
@@ -239,6 +252,27 @@ static struct usb_driver skel_driver = {
 
 문서부터 읽는 것보다 usb-skeleton.c 에 있는 함수들이 어떻게 구현되어 있는지 살펴보고 문서를 읽어보는 것이 도움이 될 것 같다.
 
+
+[19.06.12]
+
+
+static void skel_delete(struct kref *kref)
+{
+	struct usb_skel *dev = to_skel_dev(kref);
+
+	usb_free_urb(dev->bulk_in_urb);
+	usb_put_dev(dev->udev);
+	kfree(dev->bulk_in_buffer);
+	kfree(dev);
+}
+
+kref가 정확히 뭘의미하는지 모르겠다. kernel reference의 줄임말인지.. 어쨌든 저 kref라는 포인터로 usb device 구조체를 가져온다. to_skel_dev는 매크로인데
+
+#define to_skel_dev(d) container_of(d, struct usb_skel, kref)
+
+이는 Pintos할 때 썼던 매크로와 유사한 것 같다.
+
+usb_free_urb에서 urb란 USB Request Block의 약자로 모든 USB 전송에 관련되어 하위 드라이버와 통신하기위한 기본 자료구조라고 한다.
 
 
 
