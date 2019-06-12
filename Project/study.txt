@@ -4,6 +4,7 @@
 
 http://www.linux-usb.org/USB-guide/c15.html
 https://programmer.group/linux-usb-subsystem-2-_usb-skeleton.c-analysis.html
+http://furmuwon.egloos.com/category/Embedded Linux USB
 USB Driver Programming Guide For Linux
 
 
@@ -254,6 +255,49 @@ static struct usb_driver skel_driver = {
 
 
 [19.06.12]
+
+usb-skeleton.c를 make해서 간단한 user program을 작성하여 test 해보고 싶었는데
+
+device file를 mknod를 통해 만들어야하는지 아닌지 어떻게 해야 할지 모르겠어서 인터넷을 찾아봤다.
+
+생각해보니 usb device file은 이미 구현되어 있을 것 같다.
+
+device file은 "/dev/bus/usb/002/device 번호" 이런식으로 사용하면 된다고 한다. (아직 test는 안해봄)
+
+usb-skeleton.c (define 문에서 Vendor ID와 Product ID만 수정) 를 insmod하고 보드와 보드를 usb로 연결하니 이런 문구가 나왔다. (HOST)
+
+
+[  199.665175] usb 2-1.2: new high speed USB device number 4 using fsl-ehci
+[  199.861760] skeleton 2-1.2:1.0: USB Skeleton device now attached to USB0
+[  199.873272] skeleton 2-1.2:1.1: USB Skeleton device now attached to USB1
+
+그런데 Host쪽에서 usb를 뽑았다 다시 끼면
+
+[  199.665175] usb 2-1.2: new high speed USB device number 5 using fsl-ehci
+[  199.861760] skeleton 2-1.2:1.0: USB Skeleton device now attached to USB0
+[  199.873272] skeleton 2-1.2:1.1: USB Skeleton device now attached to USB1
+
+이런식으로 device number가 하나씩 증가해버린다..
+
+실제로 /dev/bus/usb/002/ 에 가보면 001 002 003 파일은 이미 존재하고 있고, 004 -> 005 이런식으로 뽑았다 낄때마다 파일들이 생겼다 지워지고 새로 생기고를 반복함.. 
+
+보드를 키고 driver를 insmod하고 usb를 연결하면 최초 번호는 004이므로 test용 user program은 일단 004로 해서 해봐야할듯.. 아무튼 위의 문구에 skeleton 어쩌고 저쩌고 뜨는 것 보니 driver는 제대로 컴파일 되었고, usb core에 제대로 붙었고 device도 제대로 인식하는 것 같다.
+
+Q. HOST쪽에만 device driver를 insmod 해놨는데 나중엔 Device쪽에도 insmod 해줘야 하지 않나
+   
+
+2-1.2:1.0 과 2-1.2:1.1의 의미는 아래와 같다고 한다.
+
+example:
+2-1.3.4.3
+2: bus (2번째 host controller) 에
+1: root hub 에 A hub 가 붙어서 "2-1". A hub 의 이름은 "2-1" 이다.
+3: A hub 의 3번째 port 에 B hub 가 붙어서 "2-1.3", B hub 의 이름은 "2-1.3" 이다.
+4: B hub 의 4번째 port 에 C hub 가 붙어서 "2-1.3.4", C hub 의 이름은 "2-1.3.4" 이다.
+3: C hub 의 3번째 port 에 어떤 Z device 붙어서 "2-1.3.4.3", Z device 의 이름은 "2-1.3.4.3" 이다.
+
+
+
 
 
 static void skel_delete(struct kref *kref)
