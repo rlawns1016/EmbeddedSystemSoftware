@@ -361,7 +361,7 @@ print문을 추가해줬는데 원했던 문구가 안나왔음. open을 저걸 
 
 로 써보고 돌려봤다.
 
-[SKEL] OPEN Called                                               
+[SKEL] OPEN Called                  
 [APP] < inter Device has been detected >     
 [ 1780.657407] [SKEL] Write Called                                                                     
 [ 1780.663888] [SKEL] Release Called
@@ -387,4 +387,20 @@ print문을 추가해줬는데 원했던 문구가 안나왔음. open을 저걸 
 	- usb-skeleton driver에 timer 구현
 
 까지 하면 될 것 같다.
+
+data transfer를 구현하기 전에 skel_read와 write함수를 봐야 할 것 같다.
+
+read 관련 call tree는 다음과 같다.
+
+skel_read()
+skel_do_read_io(dev, count)
+usb_fill_bulk_urb(...);
+usb_submit_urb(dev->bulk_in_urb, GFP_KERNEL);
+
+skel_read 는 fop에 등록된 callback 함수이다. 이 함수에서는 kernel buffer에서 data를 copy해온다고 한다.
+
+kernel buffer에 data가 안채워져 있으면 skel_do_read_io 함수를 호출해서 kernel buffer를 채운다고 한다.
+
+
+
 
