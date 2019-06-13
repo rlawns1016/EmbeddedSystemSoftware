@@ -24,8 +24,8 @@
 
 
 /* Define these values to match your devices */
-#define USB_SKEL_VENDOR_ID	0xfff0
-#define USB_SKEL_PRODUCT_ID	0xfff0
+#define USB_SKEL_VENDOR_ID	0x18d1
+#define USB_SKEL_PRODUCT_ID	0x4e42
 
 /* table of devices that work with this driver */
 static const struct usb_device_id skel_table[] = {
@@ -90,6 +90,8 @@ static int skel_open(struct inode *inode, struct file *file)
 	int subminor;
 	int retval = 0;
 
+	printk(KERN_ALERT "[SKEL] OPEN Called\n");
+
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&skel_driver, subminor);
@@ -141,6 +143,8 @@ exit:
 static int skel_release(struct inode *inode, struct file *file)
 {
 	struct usb_skel *dev;
+
+	printk(KERN_ALERT "[SKEL] Release Called\n");
 
 	dev = file->private_data;
 	if (dev == NULL)
@@ -245,6 +249,8 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 	struct usb_skel *dev;
 	int rv;
 	bool ongoing_io;
+
+	printk(KERN_ALERT "[SKEL] Read Called\n");
 
 	dev = file->private_data;
 
@@ -401,6 +407,8 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 	char *buf = NULL;
 	size_t writesize = min(count, (size_t)MAX_TRANSFER);
 
+	printk(KERN_ALERT "[SKEL] Write Called\n");
+
 	dev = file->private_data;
 
 	/* verify that we actually have some data to write */
@@ -530,6 +538,8 @@ static int skel_probe(struct usb_interface *interface,
 	int i;
 	int retval = -ENOMEM;
 
+	printk(KERN_ALERT "[SKEL] Probe Called\n");
+
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
@@ -592,6 +602,7 @@ static int skel_probe(struct usb_interface *interface,
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
+	
 
 	/* let the user know what node this device is now attached to */
 	dev_info(&interface->dev,
@@ -610,6 +621,8 @@ static void skel_disconnect(struct usb_interface *interface)
 {
 	struct usb_skel *dev;
 	int minor = interface->minor;
+
+	printk(KERN_ALERT "[SKEL] Disconnect Called\n");
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
@@ -692,6 +705,8 @@ static int __init usb_skel_init(void)
 {
 	int result;
 
+	printk(KERN_ALERT "[SKEL] Init Called\n");
+
 	/* register this driver with the USB subsystem */
 	result = usb_register(&skel_driver);
 	if (result)
@@ -703,6 +718,7 @@ static int __init usb_skel_init(void)
 static void __exit usb_skel_exit(void)
 {
 	/* deregister this driver with the USB subsystem */
+	printk(KERN_ALERT "[SKEL] Exit Called\n");
 	usb_deregister(&skel_driver);
 }
 

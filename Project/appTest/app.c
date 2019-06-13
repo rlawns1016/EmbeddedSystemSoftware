@@ -8,16 +8,17 @@ int main(void){
 	int retn;
 	char buf[4] = { 0, 0, 0, 0 };		//4byte
 	
-	fd = open("/dev/bus/usb/002/", O_RDWR);
+	fd = open("/dev/usb/usb2-1.2", O_RDWR);
 	if(fd < 0) {
-		perror("/dev/bus/usb/002/ error");
+		perror("/dev/usb/usb2-1.2 error");
 		exit(-1);
 	}
-    else { printf("< inter Device has been detected > \n"); }
+    else { printf("[APP] < inter Device has been detected > \n"); }
 	
 
 	retn = write(fd, buf, 2);
-	close(fd);
 
+	close(fd);
+	
 	return 0;
 }

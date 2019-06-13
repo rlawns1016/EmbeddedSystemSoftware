@@ -254,6 +254,27 @@ static struct usb_driver skel_driver = {
 문서부터 읽는 것보다 usb-skeleton.c 에 있는 함수들이 어떻게 구현되어 있는지 살펴보고 문서를 읽어보는 것이 도움이 될 것 같다.
 
 
+
+static void skel_delete(struct kref *kref)
+{
+	struct usb_skel *dev = to_skel_dev(kref);
+
+	usb_free_urb(dev->bulk_in_urb);
+	usb_put_dev(dev->udev);
+	kfree(dev->bulk_in_buffer);
+	kfree(dev);
+}
+
+kref가 정확히 뭘의미하는지 모르겠다. kernel reference의 줄임말인지.. 어쨌든 저 kref라는 포인터로 usb device 구조체를 가져온다. to_skel_dev는 매크로인데
+
+#define to_skel_dev(d) container_of(d, struct usb_skel, kref)
+
+이는 Pintos할 때 썼던 매크로와 유사한 것 같다.
+
+usb_free_urb에서 urb란 USB Request Block의 약자로 모든 USB 전송에 관련되어 하위 드라이버와 통신하기위한 기본 자료구조라고 한다.
+
+
+
 [19.06.12]
 
 usb-skeleton.c를 make해서 간단한 user program을 작성하여 test 해보고 싶었는데
@@ -279,9 +300,9 @@ usb-skeleton.c (define 문에서 Vendor ID와 Product ID만 수정) 를 insmod�
 
 이런식으로 device number가 하나씩 증가해버린다..
 
-실제로 /dev/bus/usb/002/ 에 가보면 001 002 003 파일은 이미 존재하고 있고, 004 -> 005 이런식으로 뽑았다 낄때마다 파일들이 생겼다 지워지고 새로 생기고를 반복함.. 
+실제로 /dev/bus/usb/002/ 에 가보면 001 002 파일은 이미 존재하고 있고, 003 -> 004 이런식으로 뽑았다 낄때마다 파일들이 생겼다 지워지고 새로 생기고를 반복함.. 
 
-보드를 키고 driver를 insmod하고 usb를 연결하면 최초 번호는 004이므로 test용 user program은 일단 004로 해서 해봐야할듯.. 아무튼 위의 문구에 skeleton 어쩌고 저쩌고 뜨는 것 보니 driver는 제대로 컴파일 되었고, usb core에 제대로 붙었고 device도 제대로 인식하는 것 같다.
+보드를 키고 driver를 insmod하고 usb를 연결하면 최초 번호는 003이므로 test용 user program은 일단 003로 해서 해봐야할듯.. 아무튼 위의 문구에 skeleton 어쩌고 저쩌고 뜨는 것 보니 driver는 제대로 컴파일 되었고, usb core에 제대로 붙었고 device도 제대로 인식하는 것 같다.
 
 Q. HOST쪽에만 device driver를 insmod 해놨는데 나중엔 Device쪽에도 insmod 해줘야 하지 않나
    
@@ -297,29 +318,73 @@ example:
 3: C hub 의 3번째 port 에 어떤 Z device 붙어서 "2-1.3.4.3", Z device 의 이름은 "2-1.3.4.3" 이다.
 
 
+[19.06.13]
+
+Host쪽에서 간단한 app을 만들고 adb push해서 돌려봤는데
+
+	fd = open("/dev/bus/usb/002/003", O_RDWR);
+
+이런식으로 open을 하고 usb-skeleton.c의 open 함수에
 
 
+	printk(KERN_ALERT "[SKEL] OPEN Called\n");
 
-static void skel_delete(struct kref *kref)
-{
-	struct usb_skel *dev = to_skel_dev(kref);
+print문을 추가해줬는데 원했던 문구가 안나왔음. open을 저걸 해주는게 아닌것 같다.
 
-	usb_free_urb(dev->bulk_in_urb);
-	usb_put_dev(dev->udev);
-	kfree(dev->bulk_in_buffer);
-	kfree(dev);
-}
+그래서 Host device의 /dev 폴더를 자세히 살펴봤는데 
 
-kref가 정확히 뭘의미하는지 모르겠다. kernel reference의 줄임말인지.. 어쨌든 저 kref라는 포인터로 usb device 구조체를 가져온다. to_skel_dev는 매크로인데
+/dev/usb/ 밑에 usb2-1.2라는 파일이 생성되어있었음. 
 
-#define to_skel_dev(d) container_of(d, struct usb_skel, kref)
+2-1.2는 usb-skeleton driver를 insmod하고 Host와 Device를 usb로 연결했을때 나온 
 
-이는 Pintos할 때 썼던 매크로와 유사한 것 같다.
+(insmod usb-skeleton.ko)
+[ 1170.174399] [SKEL] Init Called
+(device와 host를 usb로 연결)                                               
+[ 1170.177759] [SKEL] Probe Called                                              
+[ 1170.181966] skeleton 2-1.2:1.0: USB Skeleton device now attached to USBSkel-0
+[ 1170.188958] [SKEL] Probe Called                                              
+[ 1170.192838] skeleton 2-1.2:1.1: USB Skeleton device now attached to USBSkel-1
+[ 1170.200253] usbcore: registered new interface driver skeleton
 
-usb_free_urb에서 urb란 USB Request Block의 약자로 모든 USB 전송에 관련되어 하위 드라이버와 통신하기위한 기본 자료구조라고 한다.
+2-1.2:1.0 과 2-1.2:1.1과 연관된것 같음.
+
+따라서 app에서의 open을 아래와 같이 바꿔봤다.
+
+	fd = open("/dev/usb/usb2-1.2", O_RDWR);
+
+이후 write함수와 close함수를 
 
 
+	retn = write(fd, buf, 2);
 
+	close(fd);
 
+로 써보고 돌려봤다.
 
+[SKEL] OPEN Called                                               
+[APP] < inter Device has been detected >     
+[ 1780.657407] [SKEL] Write Called                                                                     
+[ 1780.663888] [SKEL] Release Called
+
+잘돌아간것 같다.
+
+이제까지 한 것을 정리해보면
+
+	- usb-skeleton.c를 compile하고 insmod.
+	- usb-skeleton driver를 Linux usb subsystem에 register
+	- usb-skeleton driver를 사용하여 device를 인식시킴
+	- app단에서의 usb-skeleton driver의 사용
+
+앞으로 해야할 것은
+
+	- usb-skeleton driver를 device쪽에도 넣어줘야함
+	- usb-skeleton driver를 사용해서 양쪽의 device간의 data transfer가 가능한지 간단한 app을 구현해서 확인
+
+위의 2개까지 끝나면
+
+	- usb-skeleton driver에서 read / write 함수를 Android app에서 요구하는 바로 변경
+	- usb-skeleton driver에 interrupt handler 구현
+	- usb-skeleton driver에 timer 구현
+
+까지 하면 될 것 같다.
 

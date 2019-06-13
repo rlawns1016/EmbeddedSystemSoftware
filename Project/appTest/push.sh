@@ -1,1 +1,1 @@
-adb push app /data/local/tmp/HW3
+adb push app /data/local/tmp/project
